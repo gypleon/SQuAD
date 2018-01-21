@@ -3,11 +3,27 @@ This project is inspired by [3] which accounts for the Machine Reading Comprehen
 
 ## Methodology
 
+## Dependencies
+* Stanford CoreNLP[4]
+  * Java 8
+  * py-corenlp[5]
+* Stanford Glove[6]
+* Tensorflow[2] 1.4.0 for Python 3.6.3
+  * CUDA 9
+
 ## Implementaion
 
 ## Experiment
 
 ## Reference
 [1] [Stanford Question Answering Dataset (SQuAD)](https://rajpurkar.github.io/SQuAD-explorer/)
+
 [2] [Tensorflow.](https://www.tensorflow.org)
+
 [3] [R-NET: Machine Reading Comprehension with Self-matching Networks](https://www.microsoft.com/en-us/research/publication/mrc/)
+
+[4] [The Stanford CoreNLP Natural Language Processing Toolkit](http://nlp.stanford.edu/pubs/StanfordCoreNlp2014.pdf)
+
+[5] [py-corenlp](https://github.com/smilli/py-corenlp)
+
+[6] [GloVe: Global Vectors for Word Representation](https://nlp.stanford.edu/pubs/glove.pdf)
