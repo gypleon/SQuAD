@@ -1,24 +1,41 @@
-'''
-input: 
-  file_path - Glove pre-trained word vector file
-output:
-  embedding_dict - 300d word structure of word embedding vectors, {word:[300d], ...}
-'''
-def load_glove(file_path):
-  with open(file_path, 'r') as f:
-    while True:
-      line = f.readline().strip().split(' ')
-      if line:
-        yield line
-      else:
-        break
+class WORD_EMBEDDING:
+  '''
+  input:
+    file_path: path of pre-trained word embeddings library
+  output:
+  '''
+  def __init__(self, file_path):
+    self.file_path = file_path
+    return
 
-def word_vectors(file_path):
-  embedding_dict = dict()
-  for line in load_glove(file_path):
-    embedding_dict[line[0]] = [float(val) for val in line[1:]]
-  return embedding_dict
+  '''
+  input: 
+  output:
+    embedding_dict - 300d word representation of word embedding vectors, {word:[300d], ...}
+  '''
+  def load_glove(self):
+    with open(self.file_path, 'r') as f:
+      while True:
+        line = f.readline()
+        if line:
+          line = line.strip().split(' ')
+          yield line
+        else:
+          break
+
+  '''
+  input:
+  output:
+    embedding_dict: dict of embedding vectors
+  '''
+  def vectors(self):
+    embedding_dict = {}
+    for line in self.load_glove():
+      embedding_dict[line[0]] = [float(val) for val in line[1:]]
+    return embedding_dict
 
 if __name__ == '__main__':
-  embedding = word_vectors('../glove/glove.42B.300d.txt')
-  print(embedding['the'])
+  word_embedding = WORD_EMBEDDING('../glove/glove.840B.300d.txt.test')
+  embeddings = word_embedding.vectors()
+  print(embeddings['the'])
+  print(len(embeddings['the']))
