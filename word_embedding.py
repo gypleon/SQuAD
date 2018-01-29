@@ -8,12 +8,12 @@ class WORD_EMBEDDING:
     self.file_path = file_path
     return
 
-  '''
-  input: 
-  output:
-    embedding_dict - 300d word representation of word embedding vectors, {word:[300d], ...}
-  '''
   def load_glove(self):
+    '''
+    input: 
+    output:
+      embedding_dict - 300d word representation of word embedding vectors, {word:[300d], ...}
+    '''
     with open(self.file_path, 'r') as f:
       while True:
         line = f.readline()
@@ -23,12 +23,12 @@ class WORD_EMBEDDING:
         else:
           break
 
-  '''
-  input:
-  output:
-    embedding_dict: dict of embedding vectors
-  '''
   def vectors(self):
+    '''
+    input:
+    output:
+      embedding_dict: dict of embedding vectors
+    '''
     embedding_dict = {}
     for line in self.load_glove():
       embedding_dict[line[0]] = [float(val) for val in line[1:]]

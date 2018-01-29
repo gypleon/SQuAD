@@ -12,13 +12,13 @@ class DATA_LOADER:
     self.nlp = StanfordCoreNLP(self.corenlp_url)
     self.data_path = data_path
 
-  '''
-  input:
-  output:
-    doc_list: list of tokenized documents
-    data_dict: dict of original documents
-  '''
   def load_data(self, is_test = False, is_generator = True):
+    '''
+    input:
+    output:
+      doc_list: list of tokenized documents
+      data_dict: dict of original documents
+    '''
     with open(self.data_path, 'r') as f:
       data_dict = json.load(f)
     # preprocessing
@@ -52,13 +52,13 @@ class DATA_LOADER:
       else:
         return doc_list, data_dict
 
-  '''
-  input:
-    text: original text string
-  output:
-    _: list of tokens
-  '''
   def tokenize(self, text):
+    '''
+    input:
+      text: original text string
+    output:
+      _: list of tokens
+    '''
     tokens = self.nlp.annotate(text, properties={'annotators': 'tokenize','outputFormat': 'json'})
     return [token['word'] for token in tokens['tokens']]
   
