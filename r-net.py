@@ -1,8 +1,10 @@
 import tensorflow as tf
 import numpy as np
 from word_embedding import WORD_EMBEDDING as WE
+from attention_mechanism import GatedAttention
+from attention_mechanism import SelfMatchingAttention
 
-class R_NET:
+class R_NET():
   '''
   refer to 
   R-NET: Machine Reading Comprehension with Self-matching Networks
@@ -38,7 +40,7 @@ class R_NET:
       u_P = self.encode(passage)
 
       # gated attention-based rnn
-      self.gated_att(u_Q, u_P)
+      gated_u_P = self.gated_attn(u_P, u_Q)
 
       # self-matching attention
 
@@ -61,26 +63,45 @@ class R_NET:
     return representations
 
 
-  def gated_att(self, seq_1, seq_2):
+  def gated_attn(self, seq_1, seq_2, num_units = self.len_gs, scope = 'GatedAttn'):
+    ''' gated attention for seq_1 related to seq_2
+      input:
+        seq_i: sequence
+      output:
+        gated_representations: gated attention representations of seq_1 related to seq_2
     '''
-    '''
-    tf.contrib.rnn.AttentionCellWrapper()
-    c = 
-    self.GRURNN()
-    v = 
-    return 
+    u_Q = seq_1
+    u_P = seq_2
+    cell = self.GRUCellGPU(num_units)
+    with tf.variable_scope(scope):
+      attn_v = tf.get_variable('attn_v', [num_units])
+      w_u_Q = tf.get_variable('weight_ques')
+      w_u_P = tf.get_variable('weight_pass_orig')
+      w_v_P = tf.get_variable('weight_pass_ques')
+      v_P = tf.get_variable('embedding_pass_ques')
+      score = tf.reduce_sum(attn_v * tf.tanh(w_u_Q * u_Q + w_u_P * u_P + w_v_P * v_P), [2])
+      alignments = tf.softmax(score)
+      alignments = tf.expand_dims(alignments, 1)
+      u_Q = tf.expand_dims(u_Q, 1)
+      context = tf.reduce_sum(tf.matmul(alignments, u_Q, transpose_b=True), [2])
+      # gate
+      inputs = tf.concat([u_Q, context], 1)
+      w_g = tf.get_variable('weight_gate')
+      g = tf.sigmoid(tf.reduce_sum(w_g * inputs))
+      gated_inputs = g * inputs
+      v_P = cell(gated_inputs, v_P)
+    return v_P
 
-  def self_matching_att(self):
-    tf.contrib.rnn.AttentionCellWrapper()
+  def self_matching_attn(self):
 
   def input(self):
     return 
 
-  def GRURNN(self, sequence, num_units = self.len_gs, scope = 'GRURNN'):
+  def GRUCellGPU(self, num_units = self.len_gs, gpu_num = 0, scope = 'GRUCellGPU'):
+    ''' wrapper GRUCell with GPU
     '''
-    '''
-    gru = tf.nn.rnn_cell.GRUCell(num_units)
-    return
+    gru_cell = tf.contrib.rnn.DeviceWrapper(tf.nn.rnn_cell.GRUCell(num_units), "/device:GPU:%i" % gpu_num)
+    return gru_cell
 
   def bidirectionalGRU(self, sequence, num_layers, num_units = self.len_gs, scope = 'bidirectionalGRU'):
     ''' bidirectional rnn layer using GRU cells
@@ -96,8 +117,8 @@ class R_NET:
         output_state_bw: similiar to fw above.
     '''
     with tf.variable_scope(scope):
-      gru_fw = tf.nn.rnn_cell.GRUCell(num_units)
-      gru_bw = tf.nn.rnn_cell.GRUCell(num_units)
+      gru_fw = self.GRUCellGPU(num_units)
+      gru_bw = self.GRUCellGPU(num_units)
       # shape: [batch_size, max_time, ...] -> [1, seq_len, 300+75]
       inputs = np.array([sequence])
       outputs, _, _ = tf.contrib.rnn.stack_bidirectional_dynamic_rnn([gru_fw] * num_layers, [gru_bw] * num_layers,
