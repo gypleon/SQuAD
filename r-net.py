@@ -24,13 +24,19 @@ class R_NET(object):
     self.graph = self.build()
     
   @property
-  def answer(self):
-    return self.answer
+  def answers(self):
+    return self.answers
 
   def build(self, scope = 'rnet'):
     ''' build model graph
     input:
+      questions: a batch of questions, []
+      passages: a batch of corresponding passage ids, recover passages from ids in order to reduce duplicated passage
+        copies in memory
+      answers: a batch of corresponding answers
     output:
+      self.answers: predicted answers, [start_pointer, end_pointer]
+      self.losses: losses between predicted and target answers
     '''
     with tf.variable_scope(scope):
       # placeholders
@@ -48,8 +54,8 @@ class R_NET(object):
       h_P = self.self_matching_attn(gated_u_P)
 
       # output layer - pointer networks
-      self.answer = output_layer(h_P, u_Q)
-      self.losses = tf.losses.softmax_cross_entropy(truths, self.answer)
+      self.answers = output_layer(h_P, u_Q)
+      self.losses = tf.losses.softmax_cross_entropy(answers, self.answers)
     return 
 
   def inference(self):
@@ -57,13 +63,12 @@ class R_NET(object):
     input:
       inputs: tuples of passage, question and answer: (passage, question, truth)
     output:
-      answer: predicted answers, [start_pointer, end_pointer]
       losses: 
     '''
     passages = tf.slice(inputs, [], [])
     questions = tf.slice(inputs, [], [])
     truths = tf.slice(inputs, [], [])
-    return self.answer, self.losses
+    return self.answers, self.losses
 
   def train(self):
     optimizer = tf.train.AdadeltaOptimizer(learning_rate = self.lr, beta1 = self.rho, epsilon = self.eps)
@@ -193,6 +198,7 @@ class R_NET(object):
       # char embedding: [batch_size_word, word_length, 300], 
       # sentence: [batch_size, seq_len, 300+75]
       inputs = np.array([sequence])
+      # TODO: length of each sequence should be provided 
       outputs, _, _ = tf.contrib.rnn.stack_bidirectional_dynamic_rnn([gru_fw] * num_layers, [gru_bw] * num_layers,
       inputs)
     return outputs
@@ -208,7 +214,9 @@ class R_NET(object):
     with tf.variable_scope(scope):
       # char_embeds: [word_length, vocab_dim]
       # TODO: dynamic word_length needs padding?
-      # based on the longest word, traverse corpus in advance.
+      # NO need, since dynamic rnn adopted. But length of each word should be provided.
+      # TODO: BUT how to batch words?
+      # MAX_TIME should be provided, traverse words of a batch to get the largest word length
       char_embed = self.bidirectionalGRU(char_embeds, 2)
       embed = tf.concat([word_embed, char_embed], axis = 0)
     return embed

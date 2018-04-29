@@ -20,6 +20,15 @@ class DATA_LOADER(object):
       doc_list: list of tokenized documents
       data_dict: dict of original documents
     '''
+    # TODO: traverse A BATCH of data to collect basic statistics: (for batching)
+    # largest word length: char-level rnn embedding
+    # largest passage length: char-level rnn embedding
+    # largest question length: char-level rnn embedding
+    # lengths of words: dynamic bidirectional rnn
+    # lengths of passages: dynamic bidirectional rnn
+    # lengths of questions: dynamic bidirectional rnn
+    # passage2id: reduce duplicated passage copies
+    # TODO: MAX_TIME should be of BATCH or DATASET?
     with open(self.data_path, 'r') as f:
       data_dict = json.load(f)
     # preprocessing
@@ -53,9 +62,14 @@ class DATA_LOADER(object):
       else:
         return doc_list, data_dict
 
-  def batch(self):
+  def batch(self, batch_size):
+      ''' deliver a batch of (passage_id, question, answer) 
+      input: 
+        batch_size: batch size
+      output:
+        batch: (passage_id, question, answer)s
+      '''
     # TODO: generate a batch of passages? but how to deal with dynamic amounts of question-answer pairs?
-    # 
     return batch
 
   def tokenize(self, text):
