@@ -1,13 +1,14 @@
 import json
+import numpy as np
 from pycorenlp import StanfordCoreNLP
 
-class DATA_LOADER:
-  '''
-  intput:
-    data_path: path of training/development data set
-  output:
-  '''
+class DATA_LOADER(object):
   def __init__(self, data_path):
+    '''
+    intput:
+      data_path: path of training/development data set
+    output:
+    '''
     self.corenlp_url = 'http://localhost:9000'
     self.nlp = StanfordCoreNLP(self.corenlp_url)
     self.data_path = data_path
@@ -51,6 +52,11 @@ class DATA_LOADER:
         return doc_list
       else:
         return doc_list, data_dict
+
+  def batch(self):
+    # TODO: generate a batch of passages? but how to deal with dynamic amounts of question-answer pairs?
+    # 
+    return batch
 
   def tokenize(self, text):
     '''

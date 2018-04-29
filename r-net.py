@@ -2,45 +2,44 @@ import tensorflow as tf
 import numpy as np
 from word_embedding import WORD_EMBEDDING as WE
 
-class R_NET():
+class R_NET(object):
   '''
   refer to 
   R-NET: Machine Reading Comprehension with Self-matching Networks
   Natural Language Computing Group, Microsoft Research Asia
   https://www.microsoft.com/en-us/research/publication/mrc/
   '''
-  def __init__(self, path_dataset, path_word_embeddings, batch_size = 1, train = True, dimension_word_embeddings = 300,
+  def __init__(self, path_dataset, path_vocab, batch_size = 1, train = True, dimension_word_embeddings = 300,
                length_gru_state = 75, length_attention_state = 75, learning_rate = 1, dropout_keep_prob = 0.8,
                rho = .95, epsilon = 1e-6):
     self.path_ds = path_dataset
-    self.dim_we = dimension_word_embeddings
-    self.we = WE(path_word_embeddings)
-    self.embeddings = self.we.vectors()
+    self.vocab = WE(path_vocab, dimension_word_embeddings)
+    self.batch_size = batch_size
     self.len_gs = length_gru_state
     self.len_as = length_attention_state
     self.lr = learning_rate
     self.keep_prob = dropout_keep_prob
     self.rho = rho
     self.eps = epsilon
+    self.graph = self.build()
     
   @property
   def answer(self):
     return self.answer
 
-  def inference(self, inputs, scope = 'inference'):
-    ''' inference model
+  def build(self, scope = 'rnet'):
+    ''' build model graph
     input:
-      inputs: tuple of passage and question, (passage, question)
     output:
-      answer: predicted answer, [start_pointer, end_pointer]
     '''
-    passage = inputs[0]
-    question = inputs[1]
-    # with tf.Graph().as_default():
     with tf.variable_scope(scope):
+      # placeholders
+      questions = tf.placeholder(tf.int32, shape=[self.batch_size, self.sequence_length, ])
+      passages = tf.placeholder()
+
       # question and passage encoder
-      u_Q = self.encode(question)
-      u_P = self.encode(passage)
+      u_Q = self.encode(questions)
+      u_P = self.encode(passages)
 
       # gated attention-based rnn
       gated_u_P = self.gated_attn(u_Q, u_P)
@@ -50,7 +49,20 @@ class R_NET():
 
       # output layer - pointer networks
       self.answer = output_layer(h_P, u_Q)
-      self.losses = tf.losses.softmax_cross_entropy(truth, self.answer)
+      self.losses = tf.losses.softmax_cross_entropy(truths, self.answer)
+    return 
+
+  def inference(self):
+    ''' inference
+    input:
+      inputs: tuples of passage, question and answer: (passage, question, truth)
+    output:
+      answer: predicted answers, [start_pointer, end_pointer]
+      losses: 
+    '''
+    passages = tf.slice(inputs, [], [])
+    questions = tf.slice(inputs, [], [])
+    truths = tf.slice(inputs, [], [])
     return self.answer, self.losses
 
   def train(self):
@@ -64,11 +76,12 @@ class R_NET():
     output:
       representations: list of final representations
     '''
+    # TODO: new biRNN for each word? how to batch words for embedding?
+    # build graph for the longest word, traverse corpus in advance?
     sequence = [self.embedding(word) for word in words]
     outputs = self.bidirectionalGRU(sequence, 3)
     representations = tf.squeeze(outputs)
     return representations
-
 
   def gated_attn(self, seq_1, seq_2, num_units = self.len_gs, scope = 'GatedAttn'):
     ''' gated attention for seq_2 w.r.t seq_1
@@ -149,9 +162,6 @@ class R_NET():
       self.answer = outputs
     return self.answer
 
-  def batch_input(self, inputs):
-    return batch_inputs
-
   def GRUCellGPU(self, num_units = self.len_gs, gpu_num = 0, scope = 'GRUCellGPU'):
     ''' wrapper GRUCell with Dropout & GPU device
     '''
@@ -165,7 +175,7 @@ class R_NET():
   def bidirectionalGRU(self, sequence, num_layers, num_units = self.len_gs, scope = 'bidirectionalGRU'):
     ''' bidirectional rnn layer using GRU cells
     input: 
-      sequence: sequencial token inputs
+      sequence: sequencial token/char inputs
       num_layers: number of bidirectionalGRU layers
       num_units: number of dimension of GRU's hidden states
       scope: name of variable scope
@@ -178,7 +188,10 @@ class R_NET():
     with tf.variable_scope(scope):
       gru_fw = self.GRUCellGPU(num_units)
       gru_bw = self.GRUCellGPU(num_units)
-      # shape: [batch_size, max_time, ...] -> [1, seq_len, 300+75]
+      # shape: [batch_size, max_time_step, ...]
+      # TODO: decide batch_size_word based on the batch with the largest amount of unique words. 
+      # char embedding: [batch_size_word, word_length, 300], 
+      # sentence: [batch_size, seq_len, 300+75]
       inputs = np.array([sequence])
       outputs, _, _ = tf.contrib.rnn.stack_bidirectional_dynamic_rnn([gru_fw] * num_layers, [gru_bw] * num_layers,
       inputs)
@@ -189,19 +202,16 @@ class R_NET():
     input:
       word: tokenized word
     output:
-      embed: embedding combining both token-level and character-level
+      embed: embedding combining both word-level and character-level
     '''
-    # word-level embedding
-    if word in self.embeddings:
-      e = np.array(self.embeddings[word])
-    else:
-      # OOV
-      e = np.array([0] * self.dim_we)
-    # char-level embedding
-    seq_chars = [self.embeddings[char] for char in word]
+    word_embed, char_embeds = self.vocab.embedding(word)
     with tf.variable_scope(scope):
-      c = self.bidirectionalGRU(seq_chars, 1)
-      embed = tf.concat([e, c], axis = 0)
+      # char_embeds: [word_length, vocab_dim]
+      # TODO: dynamic word_length needs padding?
+      # based on the longest word, traverse corpus in advance.
+      char_embed = self.bidirectionalGRU(char_embeds, 2)
+      embed = tf.concat([word_embed, char_embed], axis = 0)
     return embed
+    
 
 if __name__ == '__main__':
